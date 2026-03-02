@@ -1,4 +1,5 @@
 {
+  "id": "/Izy-Schedule-v2/index.html",
   "name": "IZY Weekly Schedule",
   "short_name": "IZY",
   "description": "IZY trading-focused weekly schedule planner",
@@ -35,12 +36,34 @@
       "purpose": "maskable"
     }
   ],
+  "screenshots": [
+    {
+      "src": "/Izy-Schedule-v2/icons/icon-512.png",
+      "sizes": "512x512",
+      "type": "image/png",
+      "label": "IZY Weekly Schedule"
+    },
+    {
+      "src": "/Izy-Schedule-v2/icons/icon-512.png",
+      "sizes": "512x512",
+      "type": "image/png",
+      "form_factor": "wide",
+      "label": "IZY Weekly Schedule - Desktop"
+    }
+  ],
   "shortcuts": [
     {
       "name": "Today's Schedule",
       "short_name": "Today",
       "description": "Jump to today's schedule",
-      "url": "/Izy-Schedule-v2/index.html"
+      "url": "/Izy-Schedule-v2/index.html",
+      "icons": [
+        {
+          "src": "/Izy-Schedule-v2/icons/icon-192.png",
+          "sizes": "96x96",
+          "type": "image/png"
+        }
+      ]
     }
   ]
 }

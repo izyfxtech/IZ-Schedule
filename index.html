@@ -4,6 +4,12 @@
 <meta charset="UTF-8">
 <meta name="viewport" content="width=device-width, initial-scale=1.0">
 <title>IZY — Weekly Schedule</title>
+<link rel="manifest" href="manifest.json">
+<meta name="theme-color" content="#090704">
+<meta name="mobile-web-app-capable" content="yes">
+<meta name="apple-mobile-web-app-capable" content="yes">
+<meta name="apple-mobile-web-app-status-bar-style" content="black-translucent">
+<meta name="apple-mobile-web-app-title" content="IZY">
 <link rel="preconnect" href="https://fonts.googleapis.com">
 <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
 <link href="https://fonts.googleapis.com/css2?family=Bebas+Neue&family=DM+Sans:wght@300;400;500;600&family=DM+Mono:wght@400;500&display=swap" rel="stylesheet">
@@ -1895,10 +1901,37 @@ function syncNotifButton() {
 // Re-schedule every hour as a safety net (handles midnight rollover)
 setInterval(() => scheduleNotifications(), 60 * 60 * 1000);
 
+// ─── PWA: Install prompt ───
+let _installPrompt = null;
+
+window.addEventListener('beforeinstallprompt', e => {
+  e.preventDefault();
+  _installPrompt = e;
+  // Show install button if you have one, e.g.:
+  const btn = document.getElementById('installBtn');
+  if (btn) btn.style.display = 'inline-flex';
+});
+
+window.addEventListener('appinstalled', () => {
+  _installPrompt = null;
+  const btn = document.getElementById('installBtn');
+  if (btn) btn.style.display = 'none';
+  console.log('[IZY] App installed');
+});
+
+function triggerInstallPrompt() {
+  if (_installPrompt) {
+    _installPrompt.prompt();
+    _installPrompt.userChoice.then(choice => {
+      _installPrompt = null;
+    });
+  }
+}
+
 // ─── PWA: Register Service Worker ───
 if ('serviceWorker' in navigator) {
   window.addEventListener('load', () => {
-    navigator.serviceWorker.register('sw.js')
+    navigator.serviceWorker.register('sw.js', { scope: './' })
       .then(reg => {
         console.log('[IZY] SW registered:', reg.scope);
         // Init notifications after SW is ready

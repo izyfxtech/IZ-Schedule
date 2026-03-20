@@ -600,6 +600,23 @@ body {
   letter-spacing: 1px; line-height: 1.8; text-transform: uppercase;
 }
 
+/* ── BLEED-IN: continuation blocks from the previous day ── */
+.bleed-in-block {
+  border-left-style: dashed;
+  opacity: 0.75;
+  cursor: pointer;
+}
+.bleed-in-block:hover { opacity: 1; filter: brightness(1.15); }
+.bleed-tag {
+  display: block;
+  font-family: 'DM Mono', monospace;
+  font-size: 9px;
+  letter-spacing: 1.2px;
+  text-transform: uppercase;
+  color: var(--muted);
+  margin-bottom: 4px;
+}
+
 @media (max-width: 600px) {
   .header { padding: 20px 16px 16px; }
   .header h1 { font-size: 36px; }
@@ -1006,7 +1023,7 @@ function loadFromStorage() {
     }
     // Sort always — covers both fresh templates and loaded data so Sleep
     // (00:15 → offset 1455 mins) always lands at the end of the day list.
-    weekData[i].sort((a, b) => timeToMins(a.time) - timeToMins(b.time));
+    weekData[i].sort((a, b) => sortKey(a) - sortKey(b));
   }
 }
 
@@ -1108,6 +1125,38 @@ function timeToMins(t) {
   return h < 6 ? h * 60 + m + 1440 : h * 60 + m;
 }
 
+// Sort comparator key: t-sleep overnight blocks always land at the absolute end
+// so that a 05:00 block added on the same day doesn't displace Sleep to below it.
+function sortKey(block) {
+  const m = timeToMins(block.time);
+  return (block.type === 't-sleep' && m >= 1440) ? m + 9999 : m;
+}
+
+// Raw clock minutes with no overnight offset — used only for bleed detection
+function rawMins(t) {
+  if (!t) return 0;
+  const [h, m] = t.split(':').map(Number);
+  if (isNaN(h) || isNaN(m)) return 0;
+  return h * 60 + m;
+}
+
+// Return all blocks from dayIdx that bleed past midnight into the next calendar day.
+// Each entry: { block, remainMins }
+function getBleedIns(dayIdx) {
+  const prevIdx = (dayIdx + 6) % 7;
+  const result = [];
+  for (const b of (weekData[prevIdx] || [])) {
+    if (b.prep || b.type === 't-sleep') continue; // sleep is intentionally overnight; skip
+    const start = rawMins(b.time);
+    if (start === 0) continue; // midnight-start blocks live on current day already
+    const dur = parseDurMins(b.duration);
+    if (dur > 0 && start + dur > 1440) {
+      result.push({ block: b, remainMins: (start + dur) - 1440, fromDay: prevIdx });
+    }
+  }
+  return result;
+}
+
 function parseDurMins(str) {
   if (!str) return 0;
   if (/^→/.test(str)) return 0; // explicit continuation marker — no duration
@@ -1138,7 +1187,7 @@ function updateNowBanner() {
   }
 
   banner.style.display = 'block';
-  const blocks = (weekData[currentDay] || []).slice().sort((a, b) => timeToMins(a.time) - timeToMins(b.time));
+  const blocks = (weekData[currentDay] || []).slice().sort((a, b) => sortKey(a) - sortKey(b));
   const now = new Date();
   const rawH = now.getHours(), rawM = now.getMinutes();
   const nm = rawH < 6 ? rawH * 60 + rawM + 1440 : rawH * 60 + rawM;
@@ -1198,16 +1247,19 @@ function updateNowBanner() {
 function scrollToBlock(time) {
   const row = document.querySelector(`.block-row[data-time="${CSS.escape(time)}"]`);
   if (!row) return;
-  // Scroll the block row into view, centred
   row.scrollIntoView({ behavior: 'smooth', block: 'center' });
-  // Flash the block content inside it
   const content = row.querySelector('.block-content');
   if (!content) return;
   content.classList.remove('block-flash');
-  // Force reflow so re-adding the class triggers the animation fresh
   void content.offsetWidth;
   content.classList.add('block-flash');
   content.addEventListener('animationend', () => content.classList.remove('block-flash'), { once: true });
+}
+
+// Jump to the origin day and highlight the source block of a bleed-in
+function jumpToBleedSource(dayIdx, time) {
+  switchDay(dayIdx);
+  setTimeout(() => scrollToBlock(time), 120);
 }
 
 // ─────────────────────────────────────────────────────
@@ -1233,7 +1285,7 @@ const VALID_TYPES = new Set(['t-sleep','t-trade','t-meal','t-move','t-life','t-a
 function safeType(t) { return VALID_TYPES.has(t) ? t : 't-free'; }
 
 function renderSchedule() {
-  const blocks = (weekData[currentDay] || []).slice().sort((a, b) => timeToMins(a.time) - timeToMins(b.time));
+  const blocks = (weekData[currentDay] || []).slice().sort((a, b) => sortKey(a) - sortKey(b));
   const body = document.getElementById('scheduleBody');
   body.innerHTML = '';
 
@@ -1249,6 +1301,33 @@ function renderSchedule() {
   const nextPrepIdx = (currentDay === today)
     ? blocks.findIndex(b => b.prep && timeToMins(b.time) > nm)
     : -1;
+
+  // ── Bleed-in: blocks from the previous day that run past midnight ──
+  const bleedIns = getBleedIns(currentDay);
+  bleedIns.forEach(({ block: src, remainMins, fromDay }) => {
+    const h = Math.floor(remainMins / 60), m = remainMins % 60;
+    const remStr = (h > 0 ? `${h}h ` : '') + (m > 0 ? `${m}m` : '');
+    const row = document.createElement('div');
+    row.className = 'block-row bleed-in-row';
+    row.dataset.time = '00:00';
+    const typeClass = safeType(src.type);
+    let colorStyle = '';
+    if (src.color) {
+      const { r, g, b } = hexToRgb(src.color);
+      colorStyle = `style="border-left-color:${src.color};background:rgba(${r},${g},${b},0.05)"`;
+    }
+    row.innerHTML = `
+      <div class="time-col"><span class="time-label" style="opacity:0.45">00:00</span></div>
+      <div class="block-content ${typeClass} bleed-in-block" ${colorStyle}
+           onclick="jumpToBleedSource(${fromDay}, '${escHtml(src.time)}')"
+           title="Continued from ${DAYS[fromDay]} — click to go to source">
+        <span class="bleed-tag">↩ Continued from ${escHtml(DAYS[fromDay])}</span>
+        <span class="block-title">${escHtml(src.title)}</span>
+        <div class="block-sub">Remaining: ${escHtml(remStr)}</div>
+        <span class="block-duration">${escHtml(remStr)}</span>
+      </div>`;
+    body.appendChild(row);
+  });
 
   blocks.forEach((block, idx) => {
     // Prep row
@@ -1322,7 +1401,7 @@ function renderSchedule() {
 function syncNowBadge() {
   const today = todayIdx();
   if (currentDay !== today) return;
-  const blocks = (weekData[currentDay] || []).slice().sort((a, b) => timeToMins(a.time) - timeToMins(b.time));
+  const blocks = (weekData[currentDay] || []).slice().sort((a, b) => sortKey(a) - sortKey(b));
   const rawH = new Date().getHours(), rawM = new Date().getMinutes();
   const nm = rawH < 6 ? rawH * 60 + rawM + 1440 : rawH * 60 + rawM;
   const domRows = document.querySelectorAll('.block-row');
@@ -1479,7 +1558,7 @@ function hexToRgb(hex) {
 function openModal(sortedIdx) {
   // renderSchedule renders from a sorted copy; resolve sortedIdx back to the
   // actual position in weekData[currentDay] so we edit the correct block.
-  const sortedBlocks = (weekData[currentDay] || []).slice().sort((a, b) => timeToMins(a.time) - timeToMins(b.time));
+  const sortedBlocks = (weekData[currentDay] || []).slice().sort((a, b) => sortKey(a) - sortKey(b));
   let resolvedIdx = null;
   if (sortedIdx !== null) {
     const target = sortedBlocks[sortedIdx];
@@ -1571,11 +1650,15 @@ function saveBlock() {
 
   const block = { time, title, sub, type: safeType(type), duration, prep: isPrep, color: _selectedColor || undefined };
 
-  // Overlap check
-  if (!isPrep && parseDurMins(duration) > 0) {
-    const blocks  = weekData[currentDay];
+  // Overlap check — two cases:
+  // 1. New block has a duration: check for any time-range overlap with existing blocks
+  // 2. New block has no duration: check whether its start time falls INSIDE an existing timed block
+  //    (catches e.g. adding a block at 02:00 inside the overnight Sleep window)
+  if (!isPrep) {
+    const blocks   = weekData[currentDay];
     const newStart = timeToMins(time);
-    const newEnd   = newStart + parseDurMins(duration);
+    const newDur   = parseDurMins(duration);
+    const newEnd   = newDur > 0 ? newStart + newDur : null;
     const conflicts = [];
     for (let i = 0; i < blocks.length; i++) {
       if (i === editingIndex) continue;
@@ -1583,7 +1666,13 @@ function saveBlock() {
       if (b.prep || !b.duration || parseDurMins(b.duration) === 0) continue;
       const bStart = timeToMins(b.time);
       const bEnd   = bStart + parseDurMins(b.duration);
-      if (newStart < bEnd && newEnd > bStart) conflicts.push(b);
+      if (newEnd !== null) {
+        // Full range overlap
+        if (newStart < bEnd && newEnd > bStart) conflicts.push(b);
+      } else {
+        // No-duration: flag if start time falls inside an existing block
+        if (newStart >= bStart && newStart < bEnd) conflicts.push(b);
+      }
     }
     if (conflicts.length > 0) {
       showOverlapWarning(conflicts, block);
@@ -1604,7 +1693,7 @@ function commitBlock(block) {
   } else {
     blocks[editingIndex] = block;
   }
-  blocks.sort((a, b) => timeToMins(a.time) - timeToMins(b.time));
+  blocks.sort((a, b) => sortKey(a) - sortKey(b));
   weekData[currentDay] = blocks;
   try { localStorage.setItem(STORAGE_KEY, JSON.stringify(weekData)); } catch(e) {}
   closeModal();

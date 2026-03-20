@@ -312,10 +312,10 @@ body {
   transition: all 0.15s;
 }
 .btn:hover { color: var(--text); background: var(--surface2); }
-.btn-primary { background: rgba(232,160,32,0.1); color: var(--trade); border-color: var(--trade-border); }
-.btn-primary:hover { background: rgba(232,160,32,0.18); }
-.btn-add { background: rgba(232,160,32,0.1); color: var(--trade); border-color: var(--trade-border); font-weight: 600; }
-.btn-add:hover { background: rgba(232,160,32,0.18); color: var(--trade); }
+.btn-primary { background: var(--trade-bg); color: var(--trade); border-color: var(--trade-border); }
+.btn-primary:hover { background: var(--trade-border); }
+.btn-add { background: var(--trade-bg); color: var(--trade); border-color: var(--trade-border); font-weight: 600; }
+.btn-add:hover { background: var(--trade-border); color: var(--trade); }
 .btn-danger { color: var(--danger); border-color: rgba(217,95,75,0.35); }
 .btn-danger:hover { background: rgba(217,95,75,0.1); }
 
@@ -323,8 +323,8 @@ body {
 .btn-undo { color: var(--dim); border-color: var(--border); }
 .btn-undo:not(:disabled):hover { color: var(--text); background: var(--surface2); }
 .btn-undo:disabled { opacity: 0.35; cursor: not-allowed; }
-.btn-undo.has-undo { color: var(--trade); border-color: var(--trade-border); background: rgba(232,160,32,0.05); }
-.btn-undo.has-undo:hover { background: rgba(232,160,32,0.12); }
+.btn-undo.has-undo { color: var(--trade); border-color: var(--trade-border); background: var(--trade-bg); }
+.btn-undo.has-undo:hover { background: var(--trade-border); }
 
 /* Fix H: toolbar visual separators between logical groups */
 .toolbar-sep {
@@ -588,17 +588,7 @@ body {
 .reset-box p { font-size: 13px; color: var(--muted); line-height: 1.6; margin-bottom: 20px; }
 .reset-box-btns { display: flex; gap: 10px; justify-content: center; }
 
-/* ── TOAST ── */
-.toast {
-  position: fixed; bottom: 28px; right: 28px;
-  background: var(--surface2); border: 1px solid var(--border2); border-left: 3px solid var(--trade);
-  border-radius: 8px; padding: 12px 18px;
-  font-family: 'DM Mono', monospace; font-size: 11px; color: var(--trade);
-  letter-spacing: 1px; text-transform: uppercase;
-  opacity: 0; transform: translateY(8px);
-  transition: all 0.25s; pointer-events: none; z-index: 300;
-}
-.toast.show { opacity: 1; transform: translateY(0); }
+/* ── TOAST — see Fix G block below for full definition ── */
 
 /* ── FOOTER ── */
 .footer {
@@ -999,11 +989,10 @@ function loadFromStorage() {
   for (let i = 0; i < 7; i++) {
     if (!weekData[i] || !Array.isArray(weekData[i])) {
       weekData[i] = getTemplate(i);
-    } else {
-      // Sort on load so Sleep (00:15 → offset 1455 mins) always lands
-      // at the end of the day list, not incorrectly shown as "Up Next"
-      weekData[i].sort((a, b) => timeToMins(a.time) - timeToMins(b.time));
     }
+    // Sort always — covers both fresh templates and loaded data so Sleep
+    // (00:15 → offset 1455 mins) always lands at the end of the day list.
+    weekData[i].sort((a, b) => timeToMins(a.time) - timeToMins(b.time));
   }
 }
 
@@ -1053,6 +1042,7 @@ function importSchedule(event) {
   if (!file) return;
   const reader = new FileReader();
   reader.onload = function(e) {
+    event.target.value = ''; // Reset immediately so same file can be re-selected after any error
     try {
       const parsed = JSON.parse(e.target.result);
       if (!parsed || typeof parsed !== 'object' || Array.isArray(parsed)) {
@@ -1071,7 +1061,6 @@ function importSchedule(event) {
     } catch(err) {
       showToast('Import failed — invalid JSON');
     }
-    event.target.value = '';
   };
   reader.readAsText(file);
 }
@@ -1473,9 +1462,20 @@ function hexToRgb(hex) {
 // ─────────────────────────────────────────────────────
 // MODAL
 // ─────────────────────────────────────────────────────
-function openModal(idx) {
-  editingIndex = idx;
-  const isNew = idx === null;
+function openModal(sortedIdx) {
+  // renderSchedule renders from a sorted copy; resolve sortedIdx back to the
+  // actual position in weekData[currentDay] so we edit the correct block.
+  const sortedBlocks = (weekData[currentDay] || []).slice().sort((a, b) => timeToMins(a.time) - timeToMins(b.time));
+  let resolvedIdx = null;
+  if (sortedIdx !== null) {
+    const target = sortedBlocks[sortedIdx];
+    if (target) {
+      resolvedIdx = weekData[currentDay].indexOf(target);
+      if (resolvedIdx === -1) resolvedIdx = null;
+    }
+  }
+  editingIndex = resolvedIdx;
+  const isNew = resolvedIdx === null;
   document.getElementById('modalTitle').textContent = isNew ? 'Add Block' : 'Edit Block';
   document.getElementById('deleteBtn').style.display = isNew ? 'none' : '';
   document.getElementById('deleteConfirmBanner').classList.remove('show');
@@ -1490,7 +1490,7 @@ function openModal(idx) {
     document.getElementById('fIsPrep').checked = false;
     selectSwatch(null);
   } else {
-    const b = weekData[currentDay][idx];
+    const b = weekData[currentDay][resolvedIdx];
     document.getElementById('fTime').value = b.time || '';
     document.getElementById('fDuration').value = b.duration || '';
     document.getElementById('fTitle').value = b.title || '';
@@ -1507,7 +1507,7 @@ function openModal(idx) {
   document.getElementById('modalOverlay').classList.add('open');
   // Fix A: new blocks → focus Start Time (first field); editing → focus Title
   setTimeout(() => {
-    if (idx === null) {
+    if (resolvedIdx === null) {
       document.getElementById('fTime').focus();
     } else {
       document.getElementById('fTitle').focus();

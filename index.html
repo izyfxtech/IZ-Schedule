@@ -1125,11 +1125,9 @@ function timeToMins(t) {
   return h < 6 ? h * 60 + m + 1440 : h * 60 + m;
 }
 
-// Sort comparator key: t-sleep overnight blocks always land at the absolute end
-// so that a 05:00 block added on the same day doesn't displace Sleep to below it.
+// Sort comparator key for all blocks
 function sortKey(block) {
-  const m = timeToMins(block.time);
-  return (block.type === 't-sleep' && m >= 1440) ? m + 9999 : m;
+  return timeToMins(block.time);
 }
 
 // Raw clock minutes with no overnight offset — used only for bleed detection
@@ -1146,7 +1144,7 @@ function getBleedIns(dayIdx) {
   const prevIdx = (dayIdx + 6) % 7;
   const result = [];
   for (const b of (weekData[prevIdx] || [])) {
-    if (b.prep || b.type === 't-sleep') continue; // sleep is intentionally overnight; skip
+    if (b.prep) continue;
     const start = rawMins(b.time);
     if (start === 0) continue; // midnight-start blocks live on current day already
     const dur = parseDurMins(b.duration);

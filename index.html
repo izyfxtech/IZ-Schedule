@@ -1561,9 +1561,14 @@ function confirmImport() {
   weekData = pendingImportData;
   for (let i = 0; i < 7; i++) {
     if (!weekData[i]) weekData[i] = getTemplate(i);
+    // Sort each day so overnight/out-of-order blocks from the file land correctly
+    weekData[i].sort((a, b) => sortKey(a) - sortKey(b));
   }
   try {
     localStorage.setItem(STORAGE_KEY, JSON.stringify(weekData));
+    // Stamp the current app version so the version check on next load doesn't
+    // re-evaluate (and potentially reset) the data we just imported
+    localStorage.setItem(VERSION_KEY, String(APP_VERSION));
   } catch(e) {
     showToast('Imported (storage unavailable)');
     renderTabs(); renderSchedule();

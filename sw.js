@@ -1,4 +1,4 @@
-const CACHE_NAME = 'izy-schedule-v2';
+const CACHE_NAME = 'izy-schedule-v3';
 const FONTS_CACHE = 'izy-fonts-v1';
 const BASE = '/Izy-Schedule-v2';
 
@@ -37,6 +37,13 @@ self.addEventListener('activate', event => {
   );
 });
 
+// ── Message — allow index.html to trigger skipWaiting ──
+self.addEventListener('message', event => {
+  if (event.data && event.data.type === 'SKIP_WAITING') {
+    self.skipWaiting();
+  }
+});
+
 // ── Fetch ──
 self.addEventListener('fetch', event => {
   const url = new URL(event.request.url);
@@ -53,6 +60,22 @@ self.addEventListener('fetch', event => {
           });
         })
       )
+    );
+    return;
+  }
+
+  // index.html — network-first so updates deploy immediately.
+  // Falls back to cache only when offline.
+  if (url.pathname === `${BASE}/` || url.pathname === `${BASE}/index.html`) {
+    event.respondWith(
+      fetch(event.request)
+        .then(response => {
+          if (response.ok) {
+            caches.open(CACHE_NAME).then(cache => cache.put(event.request, response.clone()));
+          }
+          return response;
+        })
+        .catch(() => caches.match(`${BASE}/index.html`))
     );
     return;
   }

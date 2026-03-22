@@ -168,7 +168,7 @@
 [data-brightness="warm"][data-accent] {
   --prep-bg: var(--trade-bg);
 }
-html, body, .header, .now-panel, .day-tab, .schedule-wrapper,
+html, body, .header-wrap, .header, .now-panel, .day-tab, .schedule-outer, .schedule-wrapper, .footer-wrap,
 .toolbar, .btn, .block-content, .prep-bar, .modal,
 .reset-box, .toast, .footer, .form-group input,
 .form-group textarea, .form-group select {
@@ -190,14 +190,16 @@ body {
 ::-webkit-scrollbar-thumb { background: var(--border2); border-radius: 4px; }
 
 /* ── HEADER ── */
+.header-wrap {
+  border-bottom: 1px solid var(--border);
+}
 .header {
   padding: 28px 32px 20px;
-  max-width: 900px;
+  max-width: 1100px;
   margin: 0 auto;
   display: flex;
   align-items: flex-end;
   justify-content: space-between;
-  border-bottom: 1px solid var(--border);
   flex-wrap: wrap;
   gap: 14px;
 }
@@ -249,10 +251,10 @@ body {
   border: 1px solid;
 }
 .badge-green  { color: var(--trade); border-color: var(--trade-border); background: var(--trade-bg); }
-.badge-yellow { color: var(--muted); border-color: rgba(120,100,60,0.3); background: rgba(60,44,16,0.2); }
+.badge-yellow { color: var(--muted); border-color: var(--border2); background: var(--surface); }
 
 /* ── NOW BANNER ── */
-.now-banner { max-width: 900px; margin: 0 auto; padding: 0 32px; }
+.now-banner { max-width: 1100px; margin: 0 auto; padding: 0 32px; }
 .now-inner {
   display: flex;
   border: 1px solid var(--border2);
@@ -299,7 +301,7 @@ body {
 
 /* ── DAY TABS ── */
 .day-tabs {
-  max-width: 900px;
+  max-width: 1100px;
   margin: 0 auto;
   padding: 20px 32px 0;
   display: flex;
@@ -345,11 +347,13 @@ body {
 }
 
 /* ── SCHEDULE ── */
+.schedule-outer {
+  border-top: 1px solid var(--border2);
+}
 .schedule-wrapper {
-  max-width: 900px;
+  max-width: 1100px;
   margin: 0 auto;
   padding: 0 32px;
-  border-top: 1px solid var(--border2);
 }
 
 /* ── TOOLBAR ── */
@@ -663,9 +667,13 @@ body {
 /* ── TOAST — see Fix G block below for full definition ── */
 
 /* ── FOOTER ── */
+.footer-wrap {
+  border-top: 1px solid var(--border);
+  margin-top: 32px;
+}
 .footer {
-  max-width: 900px; margin: 32px auto 0;
-  padding: 16px 32px; border-top: 1px solid var(--border);
+  max-width: 1100px; margin: 0 auto;
+  padding: 16px 32px;
 }
 .footer p {
   font-family: 'DM Mono', monospace; font-size: 10px; color: var(--dim);
@@ -689,26 +697,72 @@ body {
   margin-bottom: 4px;
 }
 
+@media (max-width: 768px) and (min-width: 601px) {
+  .toolbar-right { flex-wrap: wrap; gap: 6px; }
+  .toolbar-sep { display: none; }
+}
+
 @media (max-width: 600px) {
-  .header { padding: 20px 16px 16px; }
-  .header h1 { font-size: 36px; }
+  /* ── Header ── */
+  .header { padding: 16px 16px 14px; gap: 10px; }
+  .header h1 { font-size: 34px; }
+  .header-sub { font-size: 10px; letter-spacing: 1px; }
+  .header-right { align-items: flex-start; width: 100%; }
   .clock-display { font-size: 16px; }
-  .day-tabs { padding: 16px 16px 0; }
-  .schedule-wrapper { padding: 0 16px; }
+
+  /* ── Theme picker — wrap onto two lines ── */
+  .theme-picker { flex-wrap: wrap; gap: 5px 4px; margin-top: 2px; }
+  .theme-picker-label { width: 100%; margin-bottom: 0; }
+  .theme-picker-sep { display: none; }
+  .brightness-toggle { margin-top: 2px; }
+
+  /* ── Now banner ── */
   .now-banner { padding: 0 16px; }
-  .footer { padding: 16px; }
-  .block-content { padding-right: 40px; }
+  .now-inner { flex-direction: column; }
+  .now-panel:first-child { border-right: none; border-bottom: 1px solid var(--border); }
+
+  /* ── Day tabs ── */
+  .day-tabs { padding: 12px 16px 0; gap: 3px; }
+  .day-tab { font-size: 10px; padding: 8px 4px; letter-spacing: 0.5px; }
+
+  /* ── Schedule ── */
+  .schedule-wrapper { padding: 0 16px; }
+  .block-content { padding-right: 38px; }
   .block-duration { display: none; }
-  .toolbar { flex-direction: column; align-items: flex-start; }
-  .toolbar-right { width: 100%; justify-content: flex-start; }
+
+  /* ── Toolbar ── */
+  .toolbar { flex-direction: column; align-items: flex-start; padding: 12px 0 10px; }
+  .toolbar-right {
+    width: 100%;
+    flex-wrap: wrap;
+    justify-content: flex-start;
+    gap: 6px;
+  }
   .toolbar-right .btn { font-size: 10px; padding: 6px 10px; }
-  /* Fix D: always show edit affordance on touch/mobile */
+  .toolbar-sep { display: none; }
+
+  /* ── Always show edit affordance on touch ── */
   .block-edit-btn { opacity: 0.45 !important; }
+
+  /* ── Toast — keep above FAB, full-width friendly ── */
+  .toast {
+    bottom: 84px; right: 16px; left: 16px;
+    justify-content: space-between;
+  }
+
+  .fab-add { bottom: 20px; left: 20px; width: 44px; height: 44px; font-size: 22px; }
+
+  /* ── Footer ── */
+  .footer-wrap { margin-top: 16px; }
+  .footer { padding: 12px 16px; }
+  .footer p { font-size: 9px; }
 }
 
 /* Fix C: floating add block button */
 .fab-add {
-  position: fixed; bottom: 28px; left: 28px;
+  position: fixed;
+  bottom: 28px;
+  left: max(28px, calc(50% - 550px));
   width: 48px; height: 48px; border-radius: 50%;
   background: var(--trade-bg); border: 1px solid var(--trade-border);
   color: var(--trade); font-size: 24px; font-weight: 300; line-height: 1;
@@ -768,18 +822,21 @@ body {
 
 /* ── BRIGHTNESS TOGGLE ── */
 .theme-picker-sep {
-  width: 1px; height: 16px; background: var(--border2); flex-shrink: 0; margin: 0 2px;
+  width: 1px; height: 22px; background: var(--border2); flex-shrink: 0; margin: 0 3px;
+  align-self: center;
 }
 .brightness-toggle {
-  display: flex; align-items: center; gap: 0;
+  display: flex; align-items: stretch;
+  height: 22px;
   border: 1px solid var(--border2); border-radius: 6px;
   overflow: hidden; flex-shrink: 0;
 }
 .brightness-btn {
   font-family: 'DM Mono', monospace; font-size: 10px; letter-spacing: 0.5px;
-  padding: 4px 8px; background: var(--surface); color: var(--muted);
+  padding: 0 8px; background: var(--surface); color: var(--muted);
   border: none; cursor: pointer; transition: background 0.15s, color 0.15s;
   white-space: nowrap; line-height: 1;
+  display: flex; align-items: center;
 }
 .brightness-btn:not(:last-child) { border-right: 1px solid var(--border2); }
 .brightness-btn:hover { background: var(--surface2); color: var(--text); }
@@ -789,6 +846,7 @@ body {
 <body>
 
 <!-- HEADER -->
+<div class="header-wrap">
 <div class="header">
   <div>
     <h1>Weekly Schedule</h1>
@@ -834,6 +892,7 @@ body {
     </div>
   </div>
 </div>
+</div>
 
 <!-- NOW BANNER -->
 <div class="now-banner" id="nowBanner" style="display:none">
@@ -855,6 +914,7 @@ body {
 <div class="day-tabs" id="dayTabs"></div>
 
 <!-- SCHEDULE WRAPPER -->
+<div class="schedule-outer">
 <div class="schedule-wrapper">
   <div class="toolbar">
     <div class="toolbar-left">
@@ -879,10 +939,13 @@ body {
   <div class="schedule" id="scheduleBody"></div>
 
 </div>
+</div>
 
 <!-- FOOTER -->
+<div class="footer-wrap">
 <div class="footer">
   <p>◈ Candle closes: Mon–Fri 6 AM · Tue–Thu also 11 AM, 3 PM, 7 PM, 11 PM &nbsp;·&nbsp; Market closes Fri 10 PM, reopens Sun 10 PM &nbsp;·&nbsp; Changes saved automatically</p>
+</div>
 </div>
 
 <!-- EDIT MODAL -->

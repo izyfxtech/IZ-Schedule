@@ -2603,15 +2603,37 @@ function triggerInstallPrompt() {
 // ─── PWA: Register Service Worker ───
 if ('serviceWorker' in navigator) {
   window.addEventListener('load', () => {
-    navigator.serviceWorker.register('sw.js', { scope: './' })
+    navigator.serviceWorker.register('sw.js', { scope: './', updateViaCache: 'none' })
       .then(reg => {
         console.log('[IZY] SW registered:', reg.scope);
+        // Force the SW to check for an updated version on every page load
+        reg.update();
+        // When a new SW is waiting, skip waiting and take over immediately
+        reg.addEventListener('updatefound', () => {
+          const newWorker = reg.installing;
+          if (!newWorker) return;
+          newWorker.addEventListener('statechange', () => {
+            if (newWorker.state === 'installed' && navigator.serviceWorker.controller) {
+              // New version is ready — tell it to activate now
+              newWorker.postMessage({ type: 'SKIP_WAITING' });
+            }
+          });
+        });
         // Init notifications after SW is ready
         if (notificationsEnabled() && Notification.permission === 'granted') {
           scheduleNotifications();
         }
       })
       .catch(err => console.warn('[IZY] SW registration failed:', err));
+  });
+
+  // When the SW activates a new version, reload the page to load fresh assets
+  let refreshing = false;
+  navigator.serviceWorker.addEventListener('controllerchange', () => {
+    if (!refreshing) {
+      refreshing = true;
+      window.location.reload();
+    }
   });
 }
 

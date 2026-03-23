@@ -1291,10 +1291,19 @@ async function pushToCloud() {
   if (!_sbUser || !_sb) return;
   setSyncState('syncing');
   try {
+    let accent = 'espresso', brightness = 'espresso';
+    try { accent     = localStorage.getItem(ACCENT_KEY)     || 'espresso'; } catch(e) {}
+    try { brightness = localStorage.getItem(BRIGHTNESS_KEY) || 'espresso'; } catch(e) {}
+    let userDefaults = {};
+    try { userDefaults = JSON.parse(localStorage.getItem(USER_DEFAULT_KEY) || '{}'); } catch(e) {}
+
     const { error } = await _sb.from('schedules').upsert({
-      user_id:    _sbUser.id,
-      week_data:  weekData,
-      updated_at: new Date().toISOString(),
+      user_id:       _sbUser.id,
+      week_data:     weekData,
+      accent,
+      brightness,
+      user_defaults: userDefaults,
+      updated_at:    new Date().toISOString(),
     }, { onConflict: 'user_id' });
     setSyncState(error ? 'error' : 'ok');
     if (error) console.warn('[IZ] Push failed:', error.message);
@@ -1309,12 +1318,11 @@ async function pullFromCloud() {
   try {
     const { data, error } = await _sb
       .from('schedules')
-      .select('week_data')
+      .select('week_data, accent, brightness, user_defaults')
       .eq('user_id', _sbUser.id)
       .single();
 
     if (error && error.code !== 'PGRST116') {
-      // PGRST116 = no rows — first-time user, push local data up instead
       console.warn('[IZ] Pull failed:', error.message);
       setSyncState('error');
       return;
@@ -1326,7 +1334,7 @@ async function pullFromCloud() {
       return;
     }
 
-    // Cloud data exists — merge (cloud wins, fill missing days from local)
+    // ── Restore schedule ──────────────────────────────
     const cloudData = data.week_data || {};
     for (let i = 0; i < 7; i++) {
       if (Array.isArray(cloudData[i]) && cloudData[i].length > 0) {
@@ -1341,12 +1349,28 @@ async function pullFromCloud() {
       weekData[i].sort((a, b) => sortKey(a) - sortKey(b));
     }
     try { localStorage.setItem(STORAGE_KEY, JSON.stringify(weekData)); } catch(e) {}
+
+    // ── Restore theme ─────────────────────────────────
+    if (data.accent) {
+      try { localStorage.setItem(ACCENT_KEY, data.accent); } catch(e) {}
+      applyAccent(data.accent);
+    }
+    if (data.brightness) {
+      try { localStorage.setItem(BRIGHTNESS_KEY, data.brightness); } catch(e) {}
+      applyBrightness(data.brightness);
+    }
+
+    // ── Restore user defaults ─────────────────────────
+    if (data.user_defaults && typeof data.user_defaults === 'object') {
+      try { localStorage.setItem(USER_DEFAULT_KEY, JSON.stringify(data.user_defaults)); } catch(e) {}
+    }
+
     renderTabs();
     renderSchedule();
     syncUndoButton();
     syncSaveDefaultButton();
     setSyncState('ok');
-    showToast('Schedule loaded from cloud ✓');
+    showToast('Settings loaded from cloud ✓');
   } catch(e) {
     setSyncState('error');
     console.warn('[IZ] Pull error:', e);
@@ -2473,6 +2497,7 @@ function loadUserDefaults() {
 
 function saveUserDefaults(defaults) {
   try { localStorage.setItem(USER_DEFAULT_KEY, JSON.stringify(defaults)); } catch(e) {}
+  cloudSave();
 }
 
 function getUserDefault(dayIdx) {
@@ -2589,6 +2614,7 @@ function applyAccent(name) {
     btn.classList.toggle('active', btn.dataset.accent === accent);
   });
   try { localStorage.setItem(ACCENT_KEY, accent); } catch(e) {}
+  cloudSave();
 }
 
 function applyBrightness(name) {
@@ -2602,6 +2628,7 @@ function applyBrightness(name) {
     btn.classList.toggle('active', btn.dataset.brightness === b);
   });
   try { localStorage.setItem(BRIGHTNESS_KEY, b); } catch(e) {}
+  cloudSave();
 }
 
 function loadTheme() {

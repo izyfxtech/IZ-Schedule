@@ -1,6 +1,6 @@
 const CACHE_NAME = 'iz-schedule-v1';
 const FONTS_CACHE = 'iz-fonts-v1';
-const BASE = '/IZ-Schedule';
+const BASE = '/Izy-Schedule-v2';
 
 const PRECACHE_ASSETS = [
   `${BASE}/`,

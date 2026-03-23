@@ -960,6 +960,7 @@ body {
 <div class="footer-wrap">
 <div class="footer">
   <p>◈ Candle closes: Mon–Fri 6 AM · Tue–Thu also 11 AM, 3 PM, 7 PM, 11 PM &nbsp;·&nbsp; Market closes Fri 10 PM, reopens Sun 10 PM &nbsp;·&nbsp; Changes saved automatically</p>
+  <p style="margin-top:6px;opacity:0.45" id="footerVersion"></p>
 </div>
 </div>
 
@@ -2621,8 +2622,12 @@ if ('serviceWorker' in navigator) {
   });
 }
 
-// Init notif button state on load
-window.addEventListener('DOMContentLoaded', () => syncNotifButton());
+// Init notif button state and version display on load
+window.addEventListener('DOMContentLoaded', () => {
+  syncNotifButton();
+  const v = document.getElementById('footerVersion');
+  if (v) v.textContent = `IZ v${APP_VERSION}`;
+});
 </script>
 </body>
 </html>

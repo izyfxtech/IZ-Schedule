@@ -976,7 +976,7 @@ body {
       <span class="badge badge-green">3–5× Daily Trade Checks</span>
       <span class="badge badge-yellow">Click any block to edit</span>
     </div>
-    <div id="userPill"><button class="signin-btn" onclick="openAuth()">Sign In</button></div>
+    <div id="userPill"><button class="signin-btn" id="signInBtn">Sign In</button></div>
     <div class="theme-picker" id="themePicker">
       <span class="theme-picker-label">Accent</span>
       <button class="theme-swatch" data-accent="espresso" title="Espresso" onclick="applyAccent('espresso')">
@@ -2893,13 +2893,19 @@ function renderUserPill(user) {
     el.innerHTML = `<div class="user-pill">
       <span class="sync-dot" id="syncDot" title="Synced"></span>
       <span class="user-email" title="${escHtml(user.email)}">${escHtml(user.email)}</span>
-      <button class="user-action-btn" onclick="doSignOut()">Sign Out</button>
+      <button class="user-action-btn" id="signOutBtn">Sign Out</button>
     </div>`;
     if (!navigator.onLine) setSyncState('offline');
   } else {
-    el.innerHTML = `<button class="signin-btn" onclick="openAuth()">Sign In</button>`;
+    el.innerHTML = `<button class="signin-btn" id="signInBtn">Sign In</button>`;
   }
 }
+
+// Event delegation on userPill — survives innerHTML re-renders
+document.getElementById('userPill').addEventListener('click', e => {
+  if (e.target.id === 'signOutBtn') doSignOut();
+  if (e.target.id === 'signInBtn')  openAuth();
+});
 
 // ── Auth modal ────────────────────────────────────────
 function openAuth(panel) {
@@ -2989,6 +2995,8 @@ async function doReset() {
 
 async function doSignOut() {
   if (!_sb) return;
+  _sbUser = null;
+  renderUserPill(null);
   await _sb.auth.signOut();
 }
 
